@@ -1,0 +1,1 @@
+import loggingfrom settings import mongo_serverfrom mongo_log_handlers import MongoHandlerlogger = logging.getLogger('log4mongo')logger.addHandler(MongoHandler(host=mongo_server))def logit(a):    s = str(a)    while len(s)>16000000:            logger.error(s[:16000000])            s=s[16000000:]    logger.error(s)
