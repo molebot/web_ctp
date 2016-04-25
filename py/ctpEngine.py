@@ -40,6 +40,8 @@ class SymbolOrdersManager:
         self.__price = {}
         self.__onWay = {}
     def openPosition(self,tr,volume):
+        tr = int(tr)
+        volume = int(volume)
         print(tr,volume,'SymbolOrdersManager.openPosition')
         if volume<=0:return
         event = Event(type_=EVENT_LOG)
@@ -60,8 +62,10 @@ class SymbolOrdersManager:
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
         self.__onWay[_ref] = volume*tr
     def closePosition(self,tr,volume):
+        tr = int(tr)
+        volume = int(volume)
         print(tr,volume,'SymbolOrdersManager.closePosition')
-        if volume<=0:return
+        if volume<=0:volume = -1*volume
         if tr>0:
             if self.exchange in ['SHFE', 'CFFEX']:
                 _haved = self.__status.get(_LONGDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
@@ -76,7 +80,7 @@ class SymbolOrdersManager:
                 _haved += self.__status.get(_SHORTDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
         volume = min(abs(_haved),volume)
         event = Event(type_=EVENT_LOG)
-        log = u'平仓[%s] 方向[%d] 数量[%d]'%(self.symbol,tr,volume)
+        log = u'平仓[%s] 方向[%s] 数量[%s]'%(self.symbol,str(tr),str(volume))
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -93,15 +97,17 @@ class SymbolOrdersManager:
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
         self.__onWay[_ref] = -1*volume*tr
     def closeTodayPosition(self,tr,volume):
+        tr = int(tr)
+        volume = int(volume)
         print(tr,volume,'SymbolOrdersManager.closeTodayPosition')
-        if volume<=0:return
+        if volume<=0:volume = -1*volume
         if tr>0:
             _haved = self.__status.get(_LONGDIRECTION_,{}).get(_TODAYPOSITIONDATE_,0)
         else:
             _haved = self.__status.get(_SHORTDIRECTION_,{}).get(_TODAYPOSITIONDATE_,0)
         volume = min(abs(_haved),volume)
         event = Event(type_=EVENT_LOG)
-        log = u'平今仓[%s] 方向[%d] 数量[%d]'%(self.symbol,tr,volume)
+        log = u'平今仓[%s] 方向[%s] 数量[%s]'%(self.symbol,str(tr),str(volume))
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -607,6 +613,8 @@ class MainEngine:
         print(event.dict_['log'])
         print(event.dict_['ErrorID'])
         self.lastError = event.dict_['ErrorID']
+        if int(self.lastError) == 30:
+            self.som = {}
     def get_order(self,event):
         som = self.get_som(event)
         if som:som.onorder(event)
