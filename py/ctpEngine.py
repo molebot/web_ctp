@@ -60,12 +60,15 @@ class SymbolOrdersManager:
         exchangeid = self.data["ExchangeID"]
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
-        self.__onWay[_ref] = volume*tr
+        print(self.__orders[_ref])
+        if tr>0:
+            self.__onWay[_ref] = volume
+        else:
+            self.__onWay[_ref] = -1*volume
     def closePosition(self,tr,volume):
         tr = int(tr)
         volume = int(volume)
-        print(tr,volume,'SymbolOrdersManager.closePosition')
-        if volume<=0:volume = -1*volume
+        if volume<0:volume = -1*volume
         if tr>0:
             if self.exchange in ['SHFE', 'CFFEX']:
                 _haved = self.__status.get(_LONGDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
@@ -79,6 +82,8 @@ class SymbolOrdersManager:
                 _haved = self.__status.get(_SHORTDIRECTION_, {}).get(_TODAYPOSITIONDATE_, 0)
                 _haved += self.__status.get(_SHORTDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
         volume = min(abs(_haved),volume)
+        if volume==0:return
+        print(tr,volume,'SymbolOrdersManager.closePosition')
         event = Event(type_=EVENT_LOG)
         log = u'平仓[%s] 方向[%s] 数量[%s]'%(self.symbol,str(tr),str(volume))
         event.dict_['log'] = log
@@ -95,17 +100,22 @@ class SymbolOrdersManager:
         exchangeid = self.data["ExchangeID"]
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
-        self.__onWay[_ref] = -1*volume*tr
+        print(self.__orders[_ref])
+        if tr>0:
+            self.__onWay[_ref] = -1*volume
+        else:
+            self.__onWay[_ref] = volume
     def closeTodayPosition(self,tr,volume):
         tr = int(tr)
         volume = int(volume)
-        print(tr,volume,'SymbolOrdersManager.closeTodayPosition')
-        if volume<=0:volume = -1*volume
+        if volume<0:volume = -1*volume
         if tr>0:
             _haved = self.__status.get(_LONGDIRECTION_,{}).get(_TODAYPOSITIONDATE_,0)
         else:
             _haved = self.__status.get(_SHORTDIRECTION_,{}).get(_TODAYPOSITIONDATE_,0)
         volume = min(abs(_haved),volume)
+        if volume==0:return
+        print(tr,volume,'SymbolOrdersManager.closeTodayPosition')
         event = Event(type_=EVENT_LOG)
         log = u'平今仓[%s] 方向[%s] 数量[%s]'%(self.symbol,str(tr),str(volume))
         event.dict_['log'] = log
@@ -122,7 +132,11 @@ class SymbolOrdersManager:
         exchangeid = self.data["ExchangeID"]
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
-        self.__onWay[_ref] = -1*volume*tr
+        print(self.__orders[_ref])
+        if tr>0:
+            self.__onWay[_ref] = -1*volume
+        else:
+            self.__onWay[_ref] = volume
     def ontrade(self,event):pass
     def onorder(self,event):#pass
         _data = event.dict_['data']
@@ -234,7 +248,7 @@ class SymbolOrdersManager:
                     _old = self.__status.get(_pass,{})
                     _old_old = _old.get(_YDPOSITIONDATE_,0)
                     _old_today = _old.get(_TODAYPOSITIONDATE_,0)
-                    _haved = sum(_old.values())
+                    _haved = sum(_old.values())+sum(self.__onWay.values())
 
                     if _todo>_haved:
                         self.openPosition(d_pass,_todo-_haved)
@@ -280,7 +294,7 @@ class SymbolOrdersManager:
                         self.__status = {}
                         if self.__last != self.__hold:
                             self.__last = self.__hold
-                            for _key in ['2','3']:
+                            for _key in [ _LONGDIRECTION_ ,_SHORTDIRECTION_ ]:
                                 _dict = {}
                                 _dict['InstrumentID'] = self.symbol
                                 _dict['PosiDirection'] = _key
@@ -325,7 +339,8 @@ class SymbolOrdersManager:
                 self.__status[_dir] = _old
             
             self.__signal = _hold+sum(self.__onWay.values())
-            print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
+            self.__onWay = {}
+#            print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
 
             for k,v in self.__status.items():
                 event2 = Event(type_=EVENT_POSIALL)
@@ -613,7 +628,7 @@ class MainEngine:
         print(event.dict_['log'])
         print(event.dict_['ErrorID'])
         self.lastError = event.dict_['ErrorID']
-        if int(self.lastError) == 30:
+        if int(self.lastError) in [30,50]:
             self.som = {}
     def get_order(self,event):
         som = self.get_som(event)
