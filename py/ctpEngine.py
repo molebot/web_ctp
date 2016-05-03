@@ -17,6 +17,7 @@ _SHORTDIRECTION_    = defineDict["THOST_FTDC_PD_Short"]#'3'
 from ctpApi import *
 from eventEngine import EventEngine
 from threading import Lock
+import traceback
 
 class SymbolOrdersManager:
     def __init__(self,symbol,data,me):
@@ -32,6 +33,7 @@ class SymbolOrdersManager:
         self.__status = {}
         self.__orders = {}
         self.__hold = 0
+        self.hold_ok = time()+10
         self.__signal = 0
         self.__last = 0
         self.__timecheck = 0
@@ -195,7 +197,8 @@ class SymbolOrdersManager:
             _ref = int(_data['OrderRef'])
             if int(_data['OrderRef']) in self.__orders:
                 self.__orders.pop(int(_data['OrderRef']))
-                self.__onWay.pop(_ref)
+                if _ref in self.__onWay:
+                    self.__onWay.pop(_ref)
     def ontick(self,event):#pass
         _data = event.dict_['data']
         _ask = _data['AskPrice1']
@@ -222,10 +225,13 @@ class SymbolOrdersManager:
                     self.__hold = 0
             else:
                 return
-            
+
             for k,v in self.__orders.items():
                 if time()-v[8]>1:
                     self.__orders.pop(k)
+                    if k in self.__onWay:
+                        self.__onWay.pop(k)
+            if time()<self.hold_ok:return
             if len(self.__orders)>0:
                 print(self.symbol,self.__orders)
             else:
@@ -248,32 +254,28 @@ class SymbolOrdersManager:
                     _old = self.__status.get(_pass,{})
                     _old_old = _old.get(_YDPOSITIONDATE_,0)
                     _old_today = _old.get(_TODAYPOSITIONDATE_,0)
-                    _haved = sum(_old.values())+sum(self.__onWay.values())
+                    _haved = abs(sum(_old.values())+sum(self.__onWay.values()))
 
                     if _todo>_haved:
+                        print('ontick,open')
                         self.openPosition(d_pass,_todo-_haved)
                         _old[_TODAYPOSITIONDATE_] = _old_today+(_todo-_haved)
                     elif _todo<_haved:
-                        if _todo-_haved > _old_old:
-                            # 昨仓全平 今仓平一部分
-                            self.closePosition(_pass,_old_old)
-                            _old[_YDPOSITIONDATE_] = 0
-                            if self.exchange in ['SHFE','CFFEX']:
-                                self.closeTodayPosition(_pass,_todo-_haved-_old_old)
-                            else:
-                                self.closePosition(_pass,_todo-_haved-_old_old)
-                            _old[_TODAYPOSITIONDATE_] = _old_today - (_todo-_haved-_old_old)
-                        elif _todo-_haved == _old_old:
-                            # 昨仓全平
+                        if _old_old>0:
+                            print('ontick,close_yesterday')
                             self.closePosition(_pass,_old_old)
                             _old[_YDPOSITIONDATE_] = 0
                         else:
-                            # 昨仓平一部分
-                            self.closePosition(_pass,_todo-_haved)
-                            _old[_YDPOSITIONDATE_] = _old_old - (_todo-_haved)
+                            if 1:
+                                print('ontick,close_today')
+                                if self.exchange in ['SHFE','CFFEX']:
+                                    self.closeTodayPosition(_pass,_haved-_todo)
+                                else:
+                                    self.closePosition(_pass,_haved-_todo)
+                                _old[_TODAYPOSITIONDATE_] = _old_today - min(_haved-_todo,_old_today)
 
                     self.__status[_pass] = _old
-            
+
                 if self.__signal!=self.__hold:
                     self.__signal = self.__hold
                     if self.__hold==0:
@@ -322,10 +324,11 @@ class SymbolOrdersManager:
     def onposi(self,event):#pass
         _dict = event.dict_['data']
         _dict.pop('InstrumentID')
-        
+
         with self.__lock:
             self.__status = {}
             _hold = 0
+            self.hold_ok = time()-30
             for k,_vol in _dict.items():
                 _dir,_date = k
                 _old = self.__status.get(_dir,{})
@@ -337,10 +340,14 @@ class SymbolOrdersManager:
                 else:
                     print('SymbolOrdersManager.onposition,UNKNOW_DIRECTION')
                 self.__status[_dir] = _old
-            
+            print(self.symbol,_hold,'SymbolOrdersManager.onposition.real')
             self.__signal = _hold+sum(self.__onWay.values())
+            if self.__onWay:
+                print(self.__onWay)
+            else:
+                print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
+
             self.__onWay = {}
-#            print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
 
             for k,v in self.__status.items():
                 event2 = Event(type_=EVENT_POSIALL)
@@ -521,7 +528,7 @@ class MainEngine:
         self.bridge.set_instrument(_dict)
     def get_som(self,event):
         try:
-            symbol = event.dict_['data']['InstrumentID']
+            symbol = event.dict_.get('data',{}).get('InstrumentID',None)
             if symbol:
                 if symbol not in self.tickpass:return
                 if symbol in self.som:
@@ -560,6 +567,8 @@ class MainEngine:
                 return None
         except Exception,e:
             print("ctpEngine.py MainEngine get_som ERROR",e)
+            traceback.print_exc()
+            print(event.dict_)
             print(event.type_,event.dict_['data'])
     def get_mastervol(self,event):
         _data = event.dict_['data']
