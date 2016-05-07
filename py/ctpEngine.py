@@ -1,6 +1,6 @@
 # encoding: UTF-8
 from datetime import date,datetime
-from time import time
+from time import time,sleep
 from rule import Product_Time_Rule
 import zmq
 from remote import *
@@ -231,7 +231,6 @@ class SymbolOrdersManager:
                     self.__orders.pop(k)
                     if k in self.__onWay:
                         self.__onWay.pop(k)
-            if time()<self.hold_ok:return
             if len(self.__orders)>0:
                 print(self.symbol,self.__orders)
             else:
@@ -592,7 +591,7 @@ class MainEngine:
                 log = u'主力合约数据获取完毕'
                 event.dict_['log'] = log
                 self.ee.put(event)
-                self.ee.unregister(EVENT_TICK,self.get_mastervol,False)
+                self.ee.unregister(EVENT_TICK,self.get_mastervol)
                 event = Event(type_=EVENT_LOG)
                 log = u'取消合约成交量事件注册'
                 event.dict_['log'] = log
@@ -639,6 +638,8 @@ class MainEngine:
         self.lastError = event.dict_['ErrorID']
         if int(self.lastError) in [30,50]:
             self.som = {}
+        if int(self.lastError) in [3]:
+            sleep(60)
     def get_order(self,event):
         som = self.get_som(event)
         if som:som.onorder(event)
