@@ -68,6 +68,7 @@ class SymbolOrdersManager:
         else:
             self.__onWay[_ref] = -1*volume
     def closePosition(self,tr,volume):
+        print(tr,volume,'SymbolOrdersManager.closePosition_begin')
         tr = int(tr)
         volume = int(volume)
         if volume<0:volume = -1*volume
@@ -108,6 +109,7 @@ class SymbolOrdersManager:
         else:
             self.__onWay[_ref] = volume
     def closeTodayPosition(self,tr,volume):
+        print(tr,volume,'SymbolOrdersManager.closeTodayPosition_begin')
         tr = int(tr)
         volume = int(volume)
         if volume<0:volume = -1*volume
@@ -262,15 +264,15 @@ class SymbolOrdersManager:
                     elif _todo<_haved:
                         if _old_old>0:
                             print('ontick,close_yesterday')
-                            self.closePosition(_pass,_old_old)
+                            self.closePosition(d_pass,_old_old)
                             _old[_YDPOSITIONDATE_] = 0
                         else:
                             if 1:
                                 print('ontick,close_today')
                                 if self.exchange in ['SHFE','CFFEX']:
-                                    self.closeTodayPosition(_pass,_haved-_todo)
+                                    self.closeTodayPosition(d_pass,_haved-_todo)
                                 else:
-                                    self.closePosition(_pass,_haved-_todo)
+                                    self.closePosition(d_pass,_haved-_todo)
                                 _old[_TODAYPOSITIONDATE_] = _old_today - min(_haved-_todo,_old_today)
 
                     self.__status[_pass] = _old
@@ -339,12 +341,13 @@ class SymbolOrdersManager:
                 else:
                     print('SymbolOrdersManager.onposition,UNKNOW_DIRECTION')
                 self.__status[_dir] = _old
-            print(self.symbol,_hold,'SymbolOrdersManager.onposition.real')
+#            print(self.symbol,_hold,'SymbolOrdersManager.onposition.real')
             self.__signal = _hold+sum(self.__onWay.values())
             if self.__onWay:
-                print(self.__onWay)
+                print('onway',self.__onWay)
             else:
-                print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
+                pass
+#                print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
 
             self.__onWay = {}
 
