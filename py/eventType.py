@@ -18,6 +18,7 @@ EVENT_ORDER = 'eOrder'                      # 报单推送事件
 EVENT_ORDER_JUST = 'eOrder.'                      # 报单推送事件
 
 EVENT_POSITION = '_ePosition'                # 持仓查询回报事件
+EVENT_POSITION_END = 'ePositionEnd'         #   posi end
 EVENT_POSIALL = 'ePosiAll'                # 持仓汇总
 
 EVENT_INSTRUMENT = '_eInstrument'            # 合约查询回报事件

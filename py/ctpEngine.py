@@ -14,6 +14,8 @@ _YDPOSITIONDATE_    = defineDict["THOST_FTDC_PSD_History"]#'2'
 _LONGDIRECTION_     = defineDict["THOST_FTDC_PD_Long"]#'2'
 _SHORTDIRECTION_    = defineDict["THOST_FTDC_PD_Short"]#'3'
 
+_Exchange_ = ['SHFE', 'CFFEX']
+
 from ctpApi import *
 from eventEngine import EventEngine
 from threading import Lock
@@ -41,13 +43,15 @@ class SymbolOrdersManager:
         self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x>0])#默认交易
         self.__price = {}
         self.__onWay = {}
+        self.__cache = {}
     def openPosition(self,tr,volume):
         tr = int(tr)
         volume = int(volume)
         print(tr,volume,'SymbolOrdersManager.openPosition')
         if volume<=0:return
+        self.me.position_haved = False
         event = Event(type_=EVENT_LOG)
-        log = u'开仓[%s] 方向[%d] 数量[%d]'%(self.symbol,tr,volume)
+        log = u'开仓[%s] 方向[%d] 数量[%d] 信号[%d]'%(self.symbol,tr,volume,self.__hold)
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -73,22 +77,23 @@ class SymbolOrdersManager:
         volume = int(volume)
         if volume<0:volume = -1*volume
         if tr>0:
-            if self.exchange in ['SHFE', 'CFFEX']:
+            if self.exchange in _Exchange_:
                 _haved = self.__status.get(_LONGDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
             else:
                 _haved = self.__status.get(_LONGDIRECTION_, {}).get(_TODAYPOSITIONDATE_, 0)
                 _haved += self.__status.get(_LONGDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
         else:
-            if self.exchange in ['SHFE', 'CFFEX']:
+            if self.exchange in _Exchange_:
                 _haved = self.__status.get(_SHORTDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
             else:
                 _haved = self.__status.get(_SHORTDIRECTION_, {}).get(_TODAYPOSITIONDATE_, 0)
                 _haved += self.__status.get(_SHORTDIRECTION_,{}).get(_YDPOSITIONDATE_,0)
         volume = min(abs(_haved),volume)
         if volume==0:return
+        self.me.position_haved = False
         print(tr,volume,'SymbolOrdersManager.closePosition')
         event = Event(type_=EVENT_LOG)
-        log = u'平仓[%s] 方向[%s] 数量[%s]'%(self.symbol,str(tr),str(volume))
+        log = u'平仓[%s] 方向[%s] 数量[%s] 信号[%d]'%(self.symbol,str(tr),str(volume),self.__hold)
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -120,8 +125,9 @@ class SymbolOrdersManager:
         volume = min(abs(_haved),volume)
         if volume==0:return
         print(tr,volume,'SymbolOrdersManager.closeTodayPosition')
+        self.me.position_haved = False
         event = Event(type_=EVENT_LOG)
-        log = u'平今仓[%s] 方向[%s] 数量[%s]'%(self.symbol,str(tr),str(volume))
+        log = u'平今仓[%s] 方向[%s] 数量[%s] 信号[%d]'%(self.symbol,str(tr),str(volume),self.__hold)
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -154,7 +160,7 @@ class SymbolOrdersManager:
             if _saved[-1]>=self.__maxRetry:
                 return 0
             event = Event(type_=EVENT_LOG)
-            log = u'未成交已撤单，补单'
+            log = u'%s 未成交已撤单，补单'%self.symbol
             event.dict_['log'] = log
             self.me.ee.put(event)
             if _saved[5] == defineDict["THOST_FTDC_D_Buy"]:
@@ -177,7 +183,7 @@ class SymbolOrdersManager:
             if _saved[-1]>=self.__maxRetry:
                 return 0
             event = Event(type_=EVENT_LOG)
-            log = u'部分成交，其余已撤单，补单'
+            log = u'%s 部分成交，其余已撤单，补单'%self.symbol
             event.dict_['log'] = log
             self.me.ee.put(event)
             if _saved[5] == defineDict["THOST_FTDC_D_Buy"]:
@@ -193,7 +199,7 @@ class SymbolOrdersManager:
             self.__onWay[_ref] = _todo*_volume/abs(_volume)
         elif _data['OrderStatus'] == '0':
             event = Event(type_=EVENT_LOG)
-            log = u'全部成交'
+            log = u'%s 全部成交'%self.symbol
             event.dict_['log'] = log
             self.me.ee.put(event)
             _ref = int(_data['OrderRef'])
@@ -210,6 +216,14 @@ class SymbolOrdersManager:
         if _symbol not in self.me.tickpass:return
         _exchange =  self.data.get("ExchangeID",'')
         self.__price = {"ask":_ask,"bid":_bid,"price":(_ask*_ask+_bid*_bid)/(_ask+_bid)}
+        self.price_high = _data['HighestPrice']
+        self.price_low = _data['LowestPrice']
+        self.price_open = _data['OpenPrice']
+        self.price_close = _data['LastPrice']
+        self.price_max = _data['UpperLimitPrice']
+        self.price_min = _data['LowerLimitPrice']
+        self.price_preclose = _data['PreClosePrice']
+        self.price_day = _data['ActionDay'] # str
         if time()>self.__timecheck:
             self.__timecheck = int(time()/60)*60+60
             _now = datetime.now()
@@ -235,6 +249,12 @@ class SymbolOrdersManager:
                         self.__onWay.pop(k)
             if len(self.__orders)>0:
                 print(self.symbol,self.__orders)
+            elif not self.me.position_haved and self.__cache.get('skip_time',0)<time():
+                event = Event(type_=EVENT_LOG)
+                log = u'%s 拦截逻辑指令,因为持仓未就绪'%self.symbol
+                event.dict_['log'] = log
+                self.me.ee.put(event)
+                self.__cache['skip_time'] = time()+60
             else:
                 _long       =   defineDict["THOST_FTDC_PD_Long"]
                 _short      =   defineDict["THOST_FTDC_PD_Short"]
@@ -245,7 +265,7 @@ class SymbolOrdersManager:
                     if self.__status.get(_reverse,{}).get(_YDPOSITIONDATE_,0)>0:
                         self.closePosition(d_reverse,self.__status[_reverse][_YDPOSITIONDATE_])
                     if self.__status.get(_reverse,{}).get(_TODAYPOSITIONDATE_,0)>0:
-                        if self.exchange in ['SHFE','CFFEX']:
+                        if self.exchange in _Exchange_:
                             self.closeTodayPosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
                         else:
                             self.closePosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
@@ -258,18 +278,18 @@ class SymbolOrdersManager:
                     _haved = abs(sum(_old.values())+sum(self.__onWay.values()))
 
                     if _todo>_haved:
-                        print('ontick,open')
+                        print(self.symbol,' ontick,open')
                         self.openPosition(d_pass,_todo-_haved)
                         _old[_TODAYPOSITIONDATE_] = _old_today+(_todo-_haved)
                     elif _todo<_haved:
                         if _old_old>0:
-                            print('ontick,close_yesterday')
+                            print(self.symbol,' ontick,close_yesterday')
                             self.closePosition(d_pass,_old_old)
                             _old[_YDPOSITIONDATE_] = 0
                         else:
                             if 1:
-                                print('ontick,close_today')
-                                if self.exchange in ['SHFE','CFFEX']:
+                                print(self.symbol,' ontick,close_today')
+                                if self.exchange in _Exchange_:
                                     self.closeTodayPosition(d_pass,_haved-_todo)
                                 else:
                                     self.closePosition(d_pass,_haved-_todo)
@@ -283,18 +303,20 @@ class SymbolOrdersManager:
                         if long_st.get(_YDPOSITIONDATE_,0)>0:
                             self.closePosition(1,long_st[_YDPOSITIONDATE_])
                         if long_st.get(_TODAYPOSITIONDATE_,0)>0:
-                            if self.exchange in ['SHFE','CFFEX']:
+                            if self.exchange in _Exchange_:
                                 self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
                             else:
                                 self.closePosition(1,long_st[_TODAYPOSITIONDATE_])
                         if short_st.get(_YDPOSITIONDATE_,0)>0:
                             self.closePosition(-1,short_st[_YDPOSITIONDATE_])
                         if short_st.get(_TODAYPOSITIONDATE_,0)>0:
-                            if self.exchange in ['SHFE','CFFEX']:
+                            if self.exchange in _Exchange_:
                                 self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
                             else:
                                 self.closePosition(-1,short_st[_TODAYPOSITIONDATE_])
+
                         self.__status = {}
+
                         if self.__last != self.__hold:
                             self.__last = self.__hold
                             for _key in [ _LONGDIRECTION_ ,_SHORTDIRECTION_ ]:
@@ -341,13 +363,15 @@ class SymbolOrdersManager:
                 else:
                     print('SymbolOrdersManager.onposition,UNKNOW_DIRECTION')
                 self.__status[_dir] = _old
-#            print(self.symbol,_hold,'SymbolOrdersManager.onposition.real')
+            print(self.symbol,_hold,'SymbolOrdersManager.onposition.real')
+
             self.__signal = _hold+sum(self.__onWay.values())
+
             if self.__onWay:
                 print('onway',self.__onWay)
             else:
-                pass
-#                print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
+#                pass
+                print(self.symbol,' hold:',self.__signal,' signal:',self.__hold,' status:',self.__status,'SymbolOrdersManager.onposition')
 
             self.__onWay = {}
 
@@ -415,6 +439,7 @@ class MainEngine:
 
         self.lastError = 0
         self.lastTodo = 0
+        self.position_haved=False
 
         self.eq = 0
 
@@ -439,6 +464,7 @@ class MainEngine:
         self.ee.register(EVENT_ORDER,       self.get_order,False)
         self.ee.register(EVENT_TICK,        self.get_tick,True)
         self.ee.register(EVENT_POSITION,    self.get_position,False)
+        self.ee.register(EVENT_POSITION_END,self.get_position_end,False)
         self.ee.register(EVENT_ACCOUNT,     self.get_account,False)
 
         self.ee.register(EVENT_TICK,        self.check_timer,False)
@@ -640,7 +666,8 @@ class MainEngine:
         print(event.dict_['ErrorID'])
         self.lastError = event.dict_['ErrorID']
         if int(self.lastError) in [30,50]:
-            self.som = {}
+#            self.som = {}
+            self.position_haved = False
         if int(self.lastError) in [3]:
             sleep(60)
     def get_order(self,event):
@@ -652,6 +679,8 @@ class MainEngine:
     def get_position(self,event):
         som = self.get_som(event)
         if som:som.onposi(event)
+    def get_position_end(self,event):
+        self.position_haved = True
     def get_tick(self,event):
         som = self.get_som(event)
         if som:som.ontick(event)

@@ -41,7 +41,7 @@ class ctpMdApi(MdApi):
         
         # 请求编号，由api负责管理
         self.__reqid = 0
-        self.cachePrice = False
+        self.cachePrice = True
         self.priceCache = {}
 
         # 以下变量用于实现连接和重连后的自动登陆
@@ -169,6 +169,7 @@ class ctpMdApi(MdApi):
             self.priceCache[data['InstrumentID']] = (ask,bid)
             event1 = Event(type_=EVENT_TICK)
             event1.dict_['data'] = data
+#            print('ctpApi.onRtnMarketData,',data)
             event1.symbol = data['InstrumentID']
             self.__eventEngine.put(event1)
         
@@ -342,7 +343,10 @@ class ctpTdApi(TdApi):
         event = Event(type_=EVENT_LOG)
         if error['ErrorID'] == 0:
             log = u'交易服务器登陆成功'
-            self.__orderref = int(data['MaxOrderRef'])
+            if data['MaxOrderRef']:
+                self.__orderref = int(data['MaxOrderRef'])
+            else:
+                self.__orderref = 1
             self.__frontid = data['FrontID']
             self.__sessionid = data['SessionID']
             print(data)
@@ -987,7 +991,10 @@ class ctpTdApi(TdApi):
                         _dict['InstrumentID'] = symbol
                         event.dict_['data'] = _dict
                         ee.put(event)
-                
+
+                    event = Event(type_=EVENT_POSITION_END)
+                    ee.put(event)
+
                 _dict = copy(self.dictPosition)
                 th_fork(sent_position,(self.__eventEngine,_dict))
                 self.dictPosition = {}
