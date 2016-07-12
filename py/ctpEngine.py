@@ -2,11 +2,19 @@
 from datetime import date,datetime
 from time import time,sleep
 from rule import Product_Time_Rule
-import zmq
+try:
+    import zmq
+except:
+    pass
 from remote import *
 from string import lowercase as _chars
 from string import uppercase as _CHARS
 from ctp_data_type import defineDict
+try:
+    from pymongo import MongoClient
+    mc=MongoClient()
+except:
+    mc=None
 
 _TODAYPOSITIONDATE_ = defineDict["THOST_FTDC_PSD_Today"]#'1'
 _YDPOSITIONDATE_    = defineDict["THOST_FTDC_PSD_History"]#'2'
@@ -224,12 +232,7 @@ class SymbolOrdersManager:
         self.price_min = _data['LowerLimitPrice']
         self.price_preclose = _data['PreClosePrice']
         self.price_day = _data['ActionDay'] # str
-        if time()>self.__timecheck:
-            self.__timecheck = int(time()/60)*60+60
-            _now = datetime.now()
-            self.me.now = _now
-            _time = _now.hour*100+_now.minute
-            self.__timepass = [one(_time) for one in self.__timerule].count(True)
+        self.__timepass = 1
         with self.__lock:
             if self.me.socket:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
@@ -249,11 +252,11 @@ class SymbolOrdersManager:
                         self.__onWay.pop(k)
             if len(self.__orders)>0:
                 print(self.symbol,self.__orders)
-            elif not self.me.position_haved and self.__cache.get('skip_time',0)<time():
+            elif not self.me.position_haved:
                 event = Event(type_=EVENT_LOG)
                 log = u'%s 拦截逻辑指令,因为持仓未就绪'%self.symbol
                 event.dict_['log'] = log
-                self.me.ee.put(event)
+#                self.me.ee.put(event)
                 self.__cache['skip_time'] = time()+60
             else:
                 _long       =   defineDict["THOST_FTDC_PD_Long"]
@@ -421,6 +424,7 @@ class MainEngine:
         self.subedMaster = {}
         self.tickpass = set()
         self.now = datetime.now()
+        self.nowint = int(self.now.strftime('%Y%m%d'))
         self.socket = None
         self.coreServer = str(account['zmqserver'])
         self.corefunc = passit
@@ -468,6 +472,7 @@ class MainEngine:
         self.ee.register(EVENT_ACCOUNT,     self.get_account,False)
 
         self.ee.register(EVENT_TICK,        self.check_timer,False)
+        self.ee.register(EVENT_TICK,        self.tick2mongo,False)
 
         import eventType
         for k,v in eventType.__dict__.items():
@@ -482,7 +487,7 @@ class MainEngine:
             _instlist = [ (v.get('_vol_',0),k) for k,v in self.dictInstrument.items()]
             _instlist.sort(reverse=True)
             _only = set()
-            for v,_instrumentid in _instlist[:10]:
+            for v,_instrumentid in _instlist:
                 _product = self.dictInstrument[_instrumentid]['ProductID']
                 if _product not in _only:
                     _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
@@ -637,7 +642,7 @@ class MainEngine:
             event = Event(type_=EVENT_TIMER)
             self.ee.put(event)
 
-            if not self.masterSubed and self.master and self.now.hour==14 and self.now.minute>=58:
+            if not self.masterSubed and self.master and self.now.hour == 14 and self.now.minute>=55:
                 self.masterSubed = True
                 self.ee.register(EVENT_TICK,self.get_mastervol,False)
                 event = Event(type_=EVENT_LOG)
@@ -681,6 +686,11 @@ class MainEngine:
         if som:som.onposi(event)
     def get_position_end(self,event):
         self.position_haved = True
+    def tick2mongo(self,event):
+        if mc:
+            _data = event.dict_['data']
+            _inst = _data['InstrumentID']
+            mc[_inst]['tick'].save(_data)
     def get_tick(self,event):
         som = self.get_som(event)
         if som:som.ontick(event)
@@ -756,7 +766,8 @@ class MainEngine:
                     self.lastGet = 'Account'
                     self.getAccount()
         else:
-            self.getPosition()
+            pass
+            #self.getPosition()
     #----------------------------------------------------------------------
     def initGet(self, event):
         """在交易服务器登录成功后，开始初始化查询"""
@@ -808,25 +819,35 @@ class MainEngine:
             else:
                 data['_vol_'] = -1
         data['_update_'] = _update_
-        if data['ProductID'] not in self.tmpProduct:
-            self.tmpProduct[data['ProductID']] = {}
-        if data['ExchangeID'] not in self.tmpExchange:
-            self.tmpExchange[data['ExchangeID']] = {}
-        if data['ProductID'] not in self.tmpExchange[data['ExchangeID']]:
-            self.tmpExchange[data['ExchangeID']][data['ProductID']] = {}
+        if data['ProductID'] not in self.dictProduct:
+            self.dictProduct[data['ProductID']] = {}
+        if data['ExchangeID'] not in self.dictExchange:
+            self.dictExchange[data['ExchangeID']] = {}
+        if data['ProductID'] not in self.dictExchange[data['ExchangeID']]:
+            self.dictExchange[data['ExchangeID']][data['ProductID']] = {}
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
-            self.tmpExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
-            self.tmpProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct.get(data['ProductID'],{}).get(data['InstrumentID'],0)
-            self.tmpInstrument[data['InstrumentID']] = data
+            self.dictExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
+            self.dictProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct.get(data['ProductID'],{}).get(data['InstrumentID'],0)
+            self.dictInstrument[data['InstrumentID']].update(data)
             print(data['InstrumentID'])
 
         # 合约对象查询完成后，查询投资者信息并开始循环查询
         if last:
             print('getInstrument OK')
+            for _id,_dict in self.dictInstrument.items():
+                if self.nowint > int(_dict['ExpireDate']):
+                    self.dictInstrument.pop(_id)
+                    _productid = _dict['ProductID']
+                    if _productid in self.dictProduct and _id in self.dictProduct[_productid]:
+                        self.dictProduct[_productid].pop(_id)
+                    _exchangeid = _dict['ExchangeID']
+                    if _exchangeid in self.dictExchange and _productid in self.dictExchange[_exchangeid] and _id in self.dictExchange[_exchangeid][_productid]:
+                        self.dictExchange[_exchangeid][_productid].pop(_id)
+                    event = Event(type_=EVENT_LOG)
+                    log = u'合约[%s]过期'%_id
+                    event.dict_['log'] = log
+                    self.ee.put(event)
             # 将查询完成的合约信息保存到本地文件，今日登录可直接使用不再查询
-            self.dictProduct = self.tmpProduct
-            self.dictInstrument = self.tmpInstrument
-            self.dictExchange = self.tmpExchange
             self.set_instrument()
 
             event = Event(type_=EVENT_LOG)
