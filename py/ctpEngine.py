@@ -15,6 +15,7 @@ try:
     mc=MongoClient()
 except:
     mc=None
+from filelogger import tickLogger
 
 _TODAYPOSITIONDATE_ = defineDict["THOST_FTDC_PSD_Today"]#'1'
 _YDPOSITIONDATE_    = defineDict["THOST_FTDC_PSD_History"]#'2'
@@ -413,9 +414,7 @@ class MainEngine:
         self.dictInstrument = {}        # 字典（保存合约查询数据）
         self.dictProduct = {}        # 字典（保存合约查询数据）
         self.dictExchange= {}
-        self.tmpInstrument = {}        # 字典（保存合约查询数据）
-        self.tmpProduct = {}        # 字典（保存合约查询数据）
-        self.tmpExchange= {}
+        self.tickLog = {}
         self.dictUpdate = None
         self.subInstrument = set()
         self.subedInstrument = set()
@@ -472,7 +471,7 @@ class MainEngine:
         self.ee.register(EVENT_ACCOUNT,     self.get_account,False)
 
         self.ee.register(EVENT_TICK,        self.check_timer,False)
-        self.ee.register(EVENT_TICK,        self.tick2mongo,False)
+        self.ee.register(EVENT_TICK,        self.tick2file,False)
 
         import eventType
         for k,v in eventType.__dict__.items():
@@ -686,11 +685,17 @@ class MainEngine:
         if som:som.onposi(event)
     def get_position_end(self,event):
         self.position_haved = True
-    def tick2mongo(self,event):
-        if mc:
-            _data = event.dict_['data']
-            _inst = _data['InstrumentID']
-            mc[_inst]['tick'].save(_data)
+    def tick2file(self,event):
+        _data = event.dict_['data']
+        _inst = _data['InstrumentID']
+        if _inst not in self.tickLog:
+            _logger = tickLogger(_inst).get_logger()
+            self.ticklog[_inst] = _logger
+        _logger = self.tickLog[_inst]
+        _list = _data.items()
+        _list.sort()
+        _logger.error(str(_list))
+
     def get_tick(self,event):
         som = self.get_som(event)
         if som:som.ontick(event)
