@@ -690,7 +690,7 @@ class MainEngine:
         _inst = _data['InstrumentID']
         if _inst not in self.tickLog:
             _logger = tickLogger(_inst).get_logger()
-            self.ticklog[_inst] = _logger
+            self.tickLog[_inst] = _logger
         _logger = self.tickLog[_inst]
         _list = _data.items()
         _list.sort()
