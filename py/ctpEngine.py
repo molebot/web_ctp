@@ -15,7 +15,9 @@ try:
     mc=MongoClient()
 except:
     mc=None
-from filelogger import tickLogger
+from filelogger import *
+
+logger = otherLogger().get_logger()
 
 _TODAYPOSITIONDATE_ = defineDict["THOST_FTDC_PSD_Today"]#'1'
 _YDPOSITIONDATE_    = defineDict["THOST_FTDC_PSD_History"]#'2'
@@ -480,6 +482,8 @@ class MainEngine:
 
         self.md = ctpMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
         self.td = ctpTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
+
+        logger.error('%s started'%account)
 
     def get_subscribe(self,_inst):
         if '#' in _inst:

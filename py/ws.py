@@ -13,6 +13,9 @@ from string import uppercase as _CHARS
 from time import sleep
 from eventType import *
 from threading import Lock
+from filelogger import *
+
+logger = otherLogger().get_logger()
 
 def platdict(_key,_value,_out,_pos,_tab,_keys):
     if type(_value)==type({}):
@@ -245,10 +248,19 @@ def update_ctp_accounts(act):
 def empty_func(act):pass
 #    print(act)
 
+def reboot_ctp(act):
+    global cache
+    _now = int(time.time()/3600)
+    if cache.get('reboot',0)!=_now:
+        #start_accounts(get_accounts())
+        cache['reboot'] = _now
+        logger.error('ws.reboot')
+
 funcs = {
     EVENT_EMPTY:empty_func,
     EVENT_CTPUPDATE:update_ctp_accounts,
     EVENT_CTPALL:get_ctp_accounts,
+    EVENT_REBOOT:reboot_ctp,
 }
 
 @get('/websocket', apply=[websocket])

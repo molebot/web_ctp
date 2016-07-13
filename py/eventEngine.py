@@ -42,6 +42,14 @@ class EventEngine:
                 log = 'Empty Queue'
                 event.dict_['log'] = log
                 self.put(event)
+                _now = dt.datetime.now()
+                _hour = _now.hour*100+_now.minute
+                if _hour in [829,830,831,2029,2030,2031]:
+                    event = Event(type_=EVENT_REBOOT)
+                    log = 'reboot'
+                    event.dict_['log'] = log
+                    self.put(event)
+
     #----------------------------------------------------------------------
     def __process(self, event):
         """处理事件"""

@@ -31,3 +31,5 @@ EVENT_CTPALL = 'eCtpAll'
 EVENT_EMPTY = 'eNone'
 EVENT_CTPUPDATE = 'eCtpUpdate'
 
+EVENT_REBOOT = 'eReboot'
+
