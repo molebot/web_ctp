@@ -15,7 +15,7 @@ try:
     mc=MongoClient()
 except:
     mc=None
-from filelogger import *
+from filelogger import otherLogger,tickLogger
 
 logger = otherLogger().get_logger()
 
