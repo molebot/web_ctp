@@ -837,6 +837,8 @@ class MainEngine:
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
             self.dictExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
             self.dictProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct.get(data['ProductID'],{}).get(data['InstrumentID'],0)
+            if data['InstrumentID'] not in self.dictInstrument:
+                self.dictInstrument[data['InstrumentID']] = {}
             self.dictInstrument[data['InstrumentID']].update(data)
             print(data['InstrumentID'])
 
