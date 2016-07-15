@@ -1,4 +1,4 @@
-# encoding: UTF-8
+﻿# encoding: UTF-8
 from datetime import date,datetime
 from time import time,sleep
 from rule import Product_Time_Rule
@@ -478,14 +478,16 @@ class MainEngine:
         import eventType
         for k,v in eventType.__dict__.items():
             if 'EVENT_' in k and v[0]!='_':
+                print('ce,init,rgister,'+k)
                 self.ee.register(v,self.websocket_send,False)
 
         self.md = ctpMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
         self.td = ctpTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
 
-        logger.error('%s started'%account)
+        logger.error('started %s '%account)
 
     def get_subscribe(self,_inst):
+        print('%s subscribe %s'%(self.userid,str(_inst)))
         if '#' in _inst:
             _instlist = [ (v.get('_vol_',0),k) for k,v in self.dictInstrument.items()]
             _instlist.sort(reverse=True)
@@ -511,7 +513,9 @@ class MainEngine:
                     self.tickpass.add(_instrumentid)
             for _productid,_product in self.dictProduct.items():
                 self.master[_productid] = _product
-
+        elif '@' in _inst:
+            self.subInstrument = []
+            print('scribe all')
         else:
             _all = _inst.split('+')
             for one in _all:
@@ -536,6 +540,10 @@ class MainEngine:
     def ready_subscribe(self,event):
         self.__readySubscribe[event.type_] = 1
         if len(self.__readySubscribe) == 2:
+            if len(self.subInstrument)==0:
+#                self.md.subscribeAll()
+                for one in self.dictInstrument.keys():
+                    self.md.subscribe(one,'')
             for one in self.subInstrument:
                 if one[0] in self.subedMaster:
                     event = Event(type_=EVENT_LOG)
@@ -559,7 +567,7 @@ class MainEngine:
         _dict['instrument'] = self.dictInstrument
         _dict['exchange'] = self.dictExchange
         _dict['product'] = self.dictProduct
-        _dict['day'] = date.today()
+        _dict['day'] = date.today().strftime('%Y%m%d')
         _dict['_day_'] = str(date.today())
         self.bridge.set_instrument(_dict)
     def get_som(self,event):
@@ -642,10 +650,10 @@ class MainEngine:
     def check_timer(self,event):
         if time()>=self.__timer:
             self.__timer = time()+1
-            event = Event(type_=EVENT_TIMER)
-            self.ee.put(event)
+            event_ = Event(type_=EVENT_TIMER)
+            self.ee.put(event_)
 
-            if not self.masterSubed and self.master and self.now.hour == 14 and self.now.minute>=55:
+            if not self.masterSubed and '14:55:' in event.dict_['data']['UpdateTime']:
                 self.masterSubed = True
                 self.ee.register(EVENT_TICK,self.get_mastervol,False)
                 event = Event(type_=EVENT_LOG)
@@ -653,22 +661,35 @@ class MainEngine:
                 event.dict_['log'] = log
                 self.ee.put(event)
 
-            if self.masterSubed and self.master:
-                with self.__lock:
-                    _key = self.master.keys()[0]
-                    _instruments = self.master.pop(_key)
-                    for _instrument in _instruments:
-                        _exchange = self.dictInstrument.get(_instrument,{}).get("ExchangeID",'')
-                        self.subscribe(_instrument,_exchange)
-                        if _instrument not in self.subedMaster:
-                            self.subedMaster[_instrument] = 0
+            if self.masterSubed:
+                _list = self.dictProduct.items()
+                _list = filter(lambda x:'_' not in x[0],_list)
+                _todo = []
+                for _productid,_dict in _list:
+                    _count = self.dictProduct.get('master_count',{}).get(_productid,0)
+                    _todo.append((_count,_productid))
+                _todo.sort()
+                _todo = filter(lambda x:x[0]<int(time()/(3600*24)),_todo)
+                if not _todo:return
+                _reg_product = _todo[0][1]
+                logger.error('register product for get_mastervol of %s'%_reg_product)
+                for _instrument in self.dictProduct[_reg_product].keys():
+                    _exchange = self.dictInstrument.get(_instrument,{}).get("ExchangeID",'')
+                    self.subscribe(_instrument,_exchange)
+                    if _instrument not in self.subedMaster:
+                        self.subedMaster[_instrument] = 0
+                _count = int(time()/(3600*24))
+                _master_count = self.dictProduct.get('master_count',{})
+                _master_count[_reg_product] = _count
+                self.dictProduct['master_count'] = _master_count
     def set_ws(self,ws):
         self.websocket = ws
     def websocket_send(self,event):
         try:
             self.bridge.send_ws(event)
-        except:
-            pass
+        except Exception,e:
+            print('ce,ws,except',str(event.dict_))
+            print('ce,websocket_send,'+str(e))
     def get_error(self,event):
         print(event.dict_['log'])
         print(event.dict_['ErrorID'])
@@ -790,7 +811,7 @@ class MainEngine:
         event.dict_['log'] = log
         self.ee.put(event)
 
-        if self.dictUpdate==date.today() and not fetch_new:
+        if self.dictUpdate==date.today().strftime('%Y%m%d') and not fetch_new:
 
             event = Event(type_=EVENT_PRODUCT)
             event.dict_['data'] = self.dictProduct
@@ -836,10 +857,10 @@ class MainEngine:
             self.dictExchange[data['ExchangeID']][data['ProductID']] = {}
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
             self.dictExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
-            self.dictProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct.get(data['ProductID'],{}).get(data['InstrumentID'],0)
             if data['InstrumentID'] not in self.dictInstrument:
                 self.dictInstrument[data['InstrumentID']] = {}
             self.dictInstrument[data['InstrumentID']].update(data)
+            self.dictProduct[data['ProductID']][data['InstrumentID']] = self.dictInstrument[data['InstrumentID']].get('_vol_',0)
             print(data['InstrumentID'])
 
         # 合约对象查询完成后，查询投资者信息并开始循环查询

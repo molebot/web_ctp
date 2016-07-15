@@ -1,4 +1,4 @@
-# encoding: UTF-8
+﻿# encoding: UTF-8
 from Queue import Queue, Empty
 from threading import Thread
 from time import sleep,time
@@ -38,15 +38,18 @@ class EventEngine:
                 event = self.__queue.get(block = True, timeout = 10)  # 获取事件的阻塞时间设为10秒
                 self.__process(event)
             except Empty:
-                event = Event(type_=EVENT_LOG)
-                log = 'Empty Queue'
-                event.dict_['log'] = log
-                self.put(event)
                 _now = dt.datetime.now()
                 _hour = _now.hour*100+_now.minute
+                print('ee,run',_hour)
                 if _hour in [829,830,831,2029,2030,2031]:
                     event = Event(type_=EVENT_REBOOT)
                     log = 'reboot'
+                    event.dict_['log'] = log
+                    self.put(event)
+                    print('reboot...')
+                else:
+                    event = Event(type_=EVENT_LOG)
+                    log = 'Empty Queue'
                     event.dict_['log'] = log
                     self.put(event)
 

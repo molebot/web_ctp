@@ -1,4 +1,4 @@
-# encoding: UTF-8
+﻿# encoding: UTF-8
 import json
 import time
 import shelve
@@ -14,13 +14,17 @@ from time import sleep
 from eventType import *
 from threading import Lock
 from filelogger import *
+from pymongo import MongoClient
 
+conn = MongoClient()
 logger = otherLogger().get_logger()
 
 def platdict(_key,_value,_out,_pos,_tab,_keys):
     if type(_value)==type({}):
         _out.append(_tab*_pos+_key+" => ")
-        for k,v in _value.items():
+        _list = _value.items()
+        _list.sort()
+        for k,v in _list:
             _out = platdict(k,v,_out,_pos+1,_tab,_keys+[k])
     else:
         if type(_value)==type(''):
@@ -95,17 +99,20 @@ class Bridge:
     _INSTRUMENT = "Saved_Instrument"
     def __init__(self):
         self.__lock = Lock()
+        self.db = conn['Instrument']['0']
     def set_instrument(self,_dict):
         with self.__lock:
-            f = shelve.open(self._INSTRUMENT)
-            f['data'] = _dict
-            f.close()
+            _this = self.db.find_one({'_id':'0'})
+            if not _this:
+                _this = {}
+            _this['data'] = _dict
+            self.db.replace_one({'_id':'0'},_this,True)
     def get_instrument(self):
         with self.__lock:
-            f = shelve.open(self._INSTRUMENT)
-            _out = f.get('data',{})
-            f.close()
-            return _out
+            _this = self.db.find_one({'_id':'0'})
+            if _this:
+                return _this.get('data',{})
+            return {}
     def send_ws(self,event):
         try:
             _data = json.dumps(event.dict_,ensure_ascii=False)
@@ -113,8 +120,13 @@ class Bridge:
             cache['msg'] = _l[-1*cache['len']:]
             if event.type_ == EVENT_LOG:
                 print(event.dict_['log'])
+                logger.error(event.dict_['log'])
+            elif event.type_ == EVENT_REBOOT:
+                reboot_ctp({})
             for _ws in cs:
                 _ws.send(_data)
+        except Exception,e:
+            print('ws.send_ws.error,',str(e))
         finally:
             pass
 
@@ -160,6 +172,8 @@ def set_accounts(_acc):
         _out[k] = v
         if '#' in v['instrument']:
             _out[k]['instrument'] = '#'
+        elif '@' in v['instrument']:
+            _out[k]['instrument'] = '@'
         else:
             _instrument = v['instrument'].split('+')
             _instrument.sort(reverse=True)
@@ -181,15 +195,17 @@ def set_accounts(_acc):
 print(u'可用地址: '+' '.join(get_server_ip()))
 start_accounts(get_accounts())
 
-@get('/top/<n>/')
-def get_top(n):
+@get('/master')
+def get_top():
     _all = bg.get_instrument()
-    _out = [(v.get('_vol_',0),k) for k,v in _all['instrument'].items()]
-    _out.sort(reverse=True)
-    _str = '<br/>'.join(map(str,_out[:int(n)]))
-    return u'''<!DOCTYPE html><html>
-<head></head>
-<body>%s</body></html>'''%_str
+    _pro = _all['product']
+    _out = {}
+    for _p,_inst_vol in _pro.items():
+        if type(_inst_vol)==type({}):
+            _all = [(v,k) for k,v in _inst_vol.items()]
+            _all.sort(reverse=True)
+            _out[_p] = [(one[1],one[0]) for one in _all]
+    return json.dumps(_out)
 
 @get('/all/')
 def get_all():
@@ -250,17 +266,21 @@ def empty_func(act):pass
 
 def reboot_ctp(act):
     global cache
+    global logger
     _now = int(time.time()/3600)
+    print('ws,reboot_ctp,reboot')
     if cache.get('reboot',0)!=_now:
-        #start_accounts(get_accounts())
-        cache['reboot'] = _now
         logger.error('ws.reboot')
+        print('reboot')
+        cache['reboot'] = _now
+        start_accounts(get_accounts())
+        logger = otherLogger().get_logger()
+
 
 funcs = {
     EVENT_EMPTY:empty_func,
     EVENT_CTPUPDATE:update_ctp_accounts,
     EVENT_CTPALL:get_ctp_accounts,
-    EVENT_REBOOT:reboot_ctp,
 }
 
 @get('/websocket', apply=[websocket])

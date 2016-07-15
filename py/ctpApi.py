@@ -5,6 +5,9 @@ from eventEngine import *
 from ctp_data_type import defineDict
 from thread import start_new_thread as th_fork
 from copy import copy
+from filelogger import otherLogger,tickLogger
+
+logger = otherLogger().get_logger()
 
 # ----------------------------------------------------------------------
 
@@ -197,8 +200,9 @@ class ctpMdApi(MdApi):
         self.__eventEngine.put(event)
         instrument = (instrumentid, exchangeid)
         self.__setSubscribed.add(instrument)
-        self.subscribeMarketData(instrumentid)
-
+        self.subscribeMarketData(str(instrumentid))
+    def subscribeAll(self):
+        self.subscribeMarketData('')
     #----------------------------------------------------------------------
     def unsubscribe(self, instrumentid, exchangeid):
         """取消订阅合约"""
