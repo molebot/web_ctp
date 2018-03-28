@@ -1,0 +1,1 @@
+import loggingfrom mongo_log_handlers import MongoHandlerlogger = logging.getLogger('log4mongo')logger.addHandler(MongoHandler(host='localhost'))
