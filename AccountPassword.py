@@ -20,7 +20,7 @@ class AccountPasswordManager:
             return _d
         else:
             print(u'账户管理器未发现账户 %s'%account_id)
-            return {}
+            return other_info_dict
 
 AccountPasswordManager_Version = '2018-03-31'
 
