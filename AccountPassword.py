@@ -1,10 +1,13 @@
 # encoding: UTF-8
 
 class AccountPasswordManager:
-    Server_Dict = {}
-    Server_Dict['future_shanghai'] = {'md':'tcp://123.123.123.123:1234','td':'tcp://234.234.234.234:2345','brokerid':'1234'}
-    Account_Dict = {}
-    Account_Dict['user1234'] = {'name':u'测试用户','account':'12345678','password':'future','server':'future_shanghai'}
+
+    def __init__(self):
+        self.Server_Dict = {}
+        self.Server_Dict['future_shanghai'] = {'md':'tcp://123.123.123.123:1234','td':'tcp://234.234.234.234:2345','brokerid':'1234'}
+        self.Account_Dict = {}
+        self.Account_Dict['user1234'] = {'name':u'测试用户','account':'12345678','password':'future','server':'future_shanghai'}
+
     def get_account(self,account_id,other_info_dict = {}):
         if account_id in self.Account_Dict:
             _d = self.Account_Dict[account_id]
