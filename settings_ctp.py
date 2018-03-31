@@ -39,6 +39,7 @@ log_collection = 'logs'
 #   字段命名
 InstrumentID = 'InstrumentID'
 ProductID = 'ProductID'
+LastPrice = 'LastPrice'
 ExchangeID = 'ExchangeID'
 ExpireDate = 'ExpireDate'
 OverDate = 'Over_Date'
