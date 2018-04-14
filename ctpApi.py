@@ -73,9 +73,6 @@ LongMarginRatio     i
 PriceTick           i
 '''
 
-tick_key_list = [InstrumentID,TradingDay,UpperLimitPrice,LowerLimitPrice,Volume,OpenPrice,HighestPrice,LowestPrice,PreClosePrice,LastPrice]
-info_key_list = [InstrumentName,ProductID,ExchangeID,ExpireDate,VolumeMultiple,ShortMarginRatio,LongMarginRatio,PriceTick]
-
 class ctpMdApi(MdApi):
 
     #----------------------------------------------------------------------
@@ -150,7 +147,7 @@ class ctpMdApi(MdApi):
         _date_int = date_int()
         if time() > self.next_login:
             self.next_login = time()+60
-            if 1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000 and date_weekday() < 6:
+            if (1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000) and date_weekday() < 6:
                 self.reqUserLogin(req, self.__reqid)
                 logger.error(u'<font color="grey">账户%s发起登陆[md]</font>'%self.__userid)
     def onFrontConnected(self):
@@ -164,7 +161,7 @@ class ctpMdApi(MdApi):
         self.on_line = False
         logger.error(u'<font color="red">账户%s断开柜台[md]</font>' % self.__userid)
         _date_int = date_int()
-        if 1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000 and date_weekday()<6:
+        if (1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000) and date_weekday()<6:
             pass
         else:
             sleep(60)
@@ -406,7 +403,7 @@ class ctpTdApi(TdApi):
         _date_int = date_int()
         if time() > self.next_login:
             self.next_login = time()+60
-            if 1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000 and date_weekday() < 6:
+            if (1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000) and date_weekday() < 6:
                 self.reqUserLogin(req, self.__reqid)
                 logger.error(u'<font color="grey">账户%s发起登陆[td]</font>'%self.__userid)
 
@@ -480,7 +477,7 @@ class ctpTdApi(TdApi):
         （由于耗时过长目前使用其他进程读取）
         """
         if error['ErrorID'] == 0:
-            if '&' not in data['InstrumentID'] and data['InstrumentID'][-1].isdigit():
+            if '&' not in data[InstrumentID] and data[InstrumentID][-1].isdigit():
                 event = Event(type_=EVENT_INSTRUMENT)
                 event.dict_['data'] = utf_dict(data)
                 self.__eventEngine.put(event)
@@ -499,7 +496,7 @@ class ctpTdApi(TdApi):
         self.on_line = False
         logger.error(u'<font color="red">账户%s断开柜台[td]</font>' % self.__userid)
         _date_int = date_int()
-        if 1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000 and date_weekday()<6:
+        if (1530 > _date_int > 800 or 230 > _date_int or _date_int > 2000) and date_weekday()<6:
             pass
         else:
             sleep(60)

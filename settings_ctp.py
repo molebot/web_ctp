@@ -34,7 +34,8 @@ Master_Level = 2
 #   数据库设置
 BASE_DB = 'ctpBase'
 INSTRUMENT_DB = 'InstrumentDB'
-#COMMISSION_DB = 'CommissionDB'
+ACCOUNT_DB = 'AccountDB'
+POSITION_DB = 'PositionDB'
 
 log_database = 'Log'
 log_collection = 'logs'
@@ -61,6 +62,7 @@ LowestPrice = 'LowestPrice'
 LastPrice = 'LastPrice'
 PreClosePrice = 'PreClosePrice'
 UpdateTime = 'UpdateTIme'
+#带_为自定义值
 OverDate = 'Over_Date'
 AvgVolume = 'Avg_Volume'
 IsMaster = 'Is_Master'
