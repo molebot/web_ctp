@@ -88,7 +88,7 @@ class ctpMdApi(MdApi):
         self.next_login = 0
 
         self.__userid = userid
-        user_info = apm.get_account(userid,other_info_dict={'name':'md_%s'%userid})
+        user_info = apm.get_account(userid,other_info_dict=Account_Tick.get(userid,{}))
         self.__password = user_info['password']
         self.__brokerid = user_info['brokerid']
         self.__address = user_info['md']
@@ -342,7 +342,7 @@ class ctpTdApi(TdApi):
         self.next_login = 0
 
         self.__userid = userid
-        user_info = apm.get_account(userid,other_info_dict={'name':'td_%s'%userid})
+        user_info = apm.get_account(userid,other_info_dict=Account_Trade.get(userid,{}))
         self.__password = user_info['password']
         self.__brokerid = user_info['brokerid']
         self.__address = user_info['td']
