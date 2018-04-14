@@ -28,6 +28,9 @@ PRODUCT_NO_TRADE = ['IF','IH','IC','TF','T','sc']
 CTP_PRODUCT_INFO = 'molebot_web_ctp'
 CTP_AUTH_CODE = ''
 
+#   主力合约标识
+Master_Level = 2
+
 #   数据库设置
 BASE_DB = 'ctpBase'
 INSTRUMENT_DB = 'InstrumentDB'
@@ -38,9 +41,29 @@ log_collection = 'logs'
 
 #   字段命名
 InstrumentID = 'InstrumentID'
+InstrumentName = 'InstrumentName'
 ProductID = 'ProductID'
-LastPrice = 'LastPrice'
 ExchangeID = 'ExchangeID'
+TradingDay = 'TradingDay'
+UpperLimitPrice = 'UpperLimitPrice'
+LowerLimitPrice = 'LowerLimitPrice'
+Volume = 'Volume'
+VolumeMultiple = 'VolumeMultiple'
+ShortMarginRatio = 'ShortMarginRatio'
+LongMarginRatio = 'LongMarginRatio'
+PriceTick = 'PriceTick'
 ExpireDate = 'ExpireDate'
+AskPrice = 'AskPrice1'
+BidPrice = 'BidPrice1'
+OpenPrice = 'OpenPrice'
+HighestPrice = 'HighestPrice'
+LowestPrice = 'LowestPrice'
+LastPrice = 'LastPrice'
+PreClosePrice = 'PreClosePrice'
+UpdateTime = 'UpdateTIme'
 OverDate = 'Over_Date'
 AvgVolume = 'Avg_Volume'
+IsMaster = 'Is_Master'
+
+tick_key_list = [InstrumentID,TradingDay,UpperLimitPrice,LowerLimitPrice,Volume,OpenPrice,HighestPrice,LowestPrice,PreClosePrice,LastPrice,AskPrice,BidPrice,UpdateTime]
+info_key_list = [InstrumentName,ProductID,ExchangeID,ExpireDate,VolumeMultiple,ShortMarginRatio,LongMarginRatio,PriceTick]
