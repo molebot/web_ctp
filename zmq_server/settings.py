@@ -1,1 +1,0 @@
-mongo_server='localhost'

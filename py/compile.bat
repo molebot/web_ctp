@@ -1,2 +1,0 @@
-python compile.py
-pause
