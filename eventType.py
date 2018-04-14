@@ -14,6 +14,7 @@ EVENT_TRADE_JUST = 'eTrade.'                      # 成交推送事件
 
 EVENT_SETTLEINFO = 'eSettleInfo'
 EVENT_COMMISSION = 'eCommission'
+EVENT_COMMISSION_END = 'eCommissionEnd'
 
 EVENT_ERROR = '_eError'                      # Error推送事件
 

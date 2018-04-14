@@ -34,7 +34,7 @@ Master_Level = 2
 #   数据库设置
 BASE_DB = 'ctpBase'
 INSTRUMENT_DB = 'InstrumentDB'
-COMMISSION_DB = 'CommissionDB'
+#COMMISSION_DB = 'CommissionDB'
 
 log_database = 'Log'
 log_collection = 'logs'

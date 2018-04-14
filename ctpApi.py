@@ -1014,6 +1014,11 @@ class ctpTdApi(TdApi):
             data['account'] = self.__userid
             event.dict_['data'] = data
             self.__eventEngine.put(event)
+        if last:
+            event1 = Event(type_=EVENT_COMMISSION_END)
+            data['account'] = self.__userid
+            event1.dict_['data'] = data
+            self.__eventEngine.put(event1)
 
     #----------------------------------------------------------------------
     def sendOrder(self, instrumentid, exchangeid, price, pricetype, volume, direction, offset):
@@ -1093,7 +1098,7 @@ class ctpTdApi(TdApi):
             self.__eventEngine.put(event)
         else:
             error['account'] = self.__userid
-            logger.error(u'<font color="red">账户%(account)s报错%(ErrorID)s%(ErrorMsg)s[td]</font>' % error)
+            logger.error(u'<font color="red">账户%(account)s报错%(ErrorID)s%(ErrorMsg)s[td.onRspQryInvestorPosition]</font>' % error)
 
     #----------------------------------------------------------------------
     def onRspQryTradingAccount(self, data, error, n, last):
@@ -1104,7 +1109,7 @@ class ctpTdApi(TdApi):
             self.__eventEngine.put(event)
         else:
             error['account'] = self.__userid
-            logger.error(u'<font color="red">账户%(account)s报错%(ErrorID)s%(ErrorMsg)s[td]</font>' % error)
+            logger.error(u'<font color="red">账户%(account)s报错%(ErrorID)s%(ErrorMsg)s[td.onRspQryTradingAccount]</font>' % error)
 
     #----------------------------------------------------------------------
     def onRspQryInvestor(self, data, error, n, last):
@@ -1115,5 +1120,5 @@ class ctpTdApi(TdApi):
             self.__eventEngine.put(event)
         else:
             error['account'] = self.__userid
-            logger.error(u'<font color="red">账户%(account)s报错%(ErrorID)s%(ErrorMsg)s[td]</font>' % error)
+            logger.error(u'<font color="red">账户%(account)s报错%(ErrorID)s%(ErrorMsg)s[td.onRspQryInvestor]</font>' % error)
 
