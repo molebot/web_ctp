@@ -18,6 +18,7 @@ def num2string(num_list):
 def date_int(formater = '%H%M'):
     a = datetime.datetime.now().strftime(formater)
     return int(a)
+
 def date_weekday():
     return datetime.datetime.now().isoweekday()
 
@@ -45,7 +46,8 @@ def print_dict(d):
     for key in l:
         print key, ':', d[key]
 
-'''如果有需要更多信息，自行修改下面的tick_key_list和info_key_list并把键对应到settings_ctp中
+#如果有需要更多信息，自行修改下面的tick_key_list和info_key_list并把键对应到settings_ctp中
+'''
 from tick..........
 
 InstrumentID
